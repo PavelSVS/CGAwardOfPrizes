@@ -27,8 +27,6 @@ public class AuthController : MonoBehaviour
             return;
 
         windows.Add(window);
-
-        Debug.Log(windows.Count);
     }
 
     public void OpenWindows(WindowsType _type) {
