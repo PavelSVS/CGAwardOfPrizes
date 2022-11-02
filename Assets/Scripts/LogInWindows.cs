@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.Networking;
 
 public class LogInWindows : MonoBehaviour, IWindows {
     [SerializeField] private WindowsType _type = WindowsType.login;
@@ -38,7 +39,8 @@ public class LogInWindows : MonoBehaviour, IWindows {
             });
 
         b_Continue.onClick.AddListener(() => {
-
+            b_Continue.interactable = false;
+            StartCoroutine(LogIn());
         });
 
 
@@ -48,10 +50,15 @@ public class LogInWindows : MonoBehaviour, IWindows {
                 return;
             }
 
-            WriteRUNumber();
+            if (mobileNumber_inputField.text[0] == '8' || (mobileNumber_inputField.text[0] == '7' ||
+            (mobileNumber_inputField.text.Length > 1 && (mobileNumber_inputField.text[0] == '7' && mobileNumber_inputField.text[1] == '9')))) {
+                WriteRUNumber();
 
-            if (mobileNumber_inputField.text.Length > 11) // проверка на длину номера, по международному стандарту. максимальное количество цифр в номере телефона не может привышать 18
-                mobileNumber_inputField.text = mobileNumber_inputField.text.Substring(0, 11);
+                if (mobileNumber_inputField.text.Length > 11) // проверка на длину номера, по международному стандарту. максимальное количество цифр в номере телефона не может привышать 18
+                    mobileNumber_inputField.text = mobileNumber_inputField.text.Substring(0, 11);
+            }
+            else 
+                mobileVisualNumber.text = mobileNumber_inputField.text;
         });
 
         gameObject.SetActive(false);
@@ -86,17 +93,88 @@ public class LogInWindows : MonoBehaviour, IWindows {
         return _type;
     }
 
-    public void Init() {
+    public void OpenWindow() {
         gameObject.SetActive(true);
 
         mobileNumber_inputField.text = "";
         email_inputField.text = "";
         t_error.text = "";
+        t_error.color = Color.red;
+
+        b_Continue.interactable = true;
 
         if (PlayerPrefs.HasKey("MobileLogin"))
             mobileNumber_inputField.text = PlayerPrefs.GetString("MobileLogin");
 
         mobileBlock.SetActive(true);
         emailBlock.SetActive(false);
+    }
+
+    private IEnumerator LogIn() {
+        if (Application.internetReachability == NetworkReachability.NotReachable) {
+            t_error.text = "ќтсутствует подключение к сети";
+            yield break;
+        }
+            
+        if (mobileNumber_inputField.text.Length < 2 && email_inputField.text.Length < 1) {
+            t_error.text = "¬ведите ваш номер телефона или email";
+            yield return new WaitForFixedUpdate();
+            b_Continue.interactable = true;
+            yield break;
+        }
+
+        string _login = "";
+        if (email_inputField.text.Length < 1) {
+            _login = mobileNumber_inputField.text;
+            if (_login[0] == '8' && _login[1] == '9')
+                _login = "7" + _login.Substring(1, _login.Length - 1);
+        }
+        else if (mobileNumber_inputField.text.Length < 1) {
+            if (email_inputField.text.Contains('@')) {
+                _login = email_inputField.text;
+            }
+            else {
+                t_error.text = "¬веден некорректный email адрес";
+                yield return new WaitForFixedUpdate();
+                b_Continue.interactable = true;
+                yield break;
+            }
+        }
+
+        WWWForm form = new WWWForm();
+        form.AddField("method", "login");
+    
+        form.AddField("login", _login);
+        form.AddField("pass", password_inputField.text);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(WebData.UserPath, form))//отправл€ем данные на сервер и получаем ответ с данными пользовател€
+        {
+            yield return www.SendWebRequest();
+            if (www.isNetworkError || www.isHttpError) {
+                Debug.LogError(www.error);
+                www.Dispose();
+                yield break;
+            }
+
+            UserCallResult result = JsonUtility.FromJson<UserCallResult>(www.downloadHandler.text);
+
+            www.Dispose();
+
+            if (result.error.Length < 1) {
+                t_error.color = Color.green;
+                t_error.text = "—оединение...";
+                yield return new WaitForSeconds(.5f);
+
+                if (AuthController.Instance) {
+                    AuthController.Instance.SetUserData(result.user);
+                    AuthController.Instance.OpenWindows(WindowsType.qr_read);
+                }
+                yield break;
+            }
+
+            yield return new WaitForFixedUpdate();
+            t_error.text = result.error[0];
+            b_Continue.interactable = true;
+        }
     }
 }

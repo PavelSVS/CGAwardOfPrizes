@@ -3,41 +3,68 @@ using System.Collections.Generic;
 using UnityEngine;
 using ZXing;
 using ZXing.QrCode;
+using UnityEngine.UI;
 
 public class QRReader : MonoBehaviour
 {
     private WebCamTexture camTexture;
-    private Rect screenRect;
+    [SerializeField] private RawImage image;
 
-    [SerializeField] private TMPro.TMP_Text qr_code_visual;
+    private TMPro.TMP_InputField qr_code_visual;
 
-    void Start() {
-        screenRect = new Rect(0, 0, Screen.width, Screen.height);
+    Coroutine scanning;
+
+    public void Init(TMPro.TMP_InputField text) {
+        gameObject.SetActive(true);
+
+        qr_code_visual = text;
+
         camTexture = new WebCamTexture();
-        camTexture.requestedHeight = Screen.height;
-        camTexture.requestedWidth = Screen.width;
+        camTexture.requestedHeight = (int)image.rectTransform.sizeDelta.y;
+        camTexture.requestedWidth = (int)image.rectTransform.sizeDelta.x;
+
+        image.texture = camTexture;
+        image.material.mainTexture = camTexture;
+
         if (camTexture != null) {
             camTexture.Play();
+            if (scanning != null)
+                StopCoroutine(scanning);
+
+            scanning = StartCoroutine(Scanning_QR());
         }
     }
 
-    void OnGUI() {
-        // drawing the camera on screen
-        GUI.DrawTexture(screenRect, camTexture, ScaleMode.ScaleToFit);
-        // do the reading Ч you might want to attempt to read less often than you draw on the screen for performance sake
-        try {
-            IBarcodeReader barcodeReader = new BarcodeReader();
-            // decode the current frame
-            var result = barcodeReader.Decode(camTexture.GetPixels32(),
-              camTexture.width, camTexture.height);
-            if (result != null) {
-                Debug.Log("DECODED TEXT FROM QR: " +result.Text);
+    private void StopRead() {
+        camTexture.Stop();
+        if (scanning != null)
+            StopCoroutine(scanning);
 
+        scanning = null;
+
+        gameObject.SetActive(false);
+    }
+
+    public IEnumerator Scanning_QR() {
+
+        if (!camTexture.isPlaying) {
+            StopRead();
+            yield break;
+        }
+
+        while (qr_code_visual.text == "") {
+            yield return new WaitForFixedUpdate();
+            IBarcodeReader barcodeReader = new BarcodeReader();
+
+            var result = barcodeReader.Decode(camTexture.GetPixels32(), camTexture.width, camTexture.height);
+
+            if (result != null) {
                 qr_code_visual.text = result.Text;
+                qr_code_visual.caretColor = Color.green;
+                StopRead();
             }
         }
-        catch (System.Exception ex) { Debug.LogWarning(ex.Message);
-            qr_code_visual.text = "не читаетс€";
-        }
+
+        scanning = null;
     }
 }
