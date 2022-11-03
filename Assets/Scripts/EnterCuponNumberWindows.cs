@@ -20,6 +20,11 @@ public class EnterCuponNumberWindows : MonoBehaviour, IWindows {
 
     [SerializeField] private TMP_Text t_error;
 
+    [Header("Description")]
+    [SerializeField] private Button b_OpenDiscription;
+    [SerializeField] private GameObject discriptionWindow;
+    [SerializeField] private Button b_CloseDiscription;
+
     private IEnumerator Start() {
         while (!AuthController.Instance)
             yield return new WaitForFixedUpdate();
@@ -39,6 +44,10 @@ public class EnterCuponNumberWindows : MonoBehaviour, IWindows {
         b_StartScanningQR.onClick.AddListener(() => {
             qr_reader.Init(cupon_number);
         });
+
+        b_OpenDiscription.onClick.AddListener(() => discriptionWindow.SetActive(true));
+
+        b_CloseDiscription.onClick.AddListener(() => discriptionWindow.SetActive(false));
 
         gameObject.SetActive(false);
     }
