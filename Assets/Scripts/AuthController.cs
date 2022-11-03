@@ -20,7 +20,8 @@ public class AuthController : MonoBehaviour {
         instance = this;
     }
 
-    private void Start() {
+    private IEnumerator Start() {
+        yield return new WaitForSeconds(0.5f);
         OpenWindows(WindowsType.login);
     }
 

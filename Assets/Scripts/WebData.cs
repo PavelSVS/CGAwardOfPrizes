@@ -18,6 +18,9 @@ public class WebData
 
     private static string request_prise_info = "/api/games/stocks";
     public static string RequestPrizeInfo => domain + request_prise_info;
+
+    private static string give_prize_out = "/api/games/stocks";
+    public static string GivePrizeOut = domain + give_prize_out;
 }
 
 public enum WindowsType { login, registration, qr_read, prize_demo };
@@ -94,14 +97,34 @@ public class PrizeInfo {
     public int active;
     public int reserved;
 
+    public PrizeBlock prize;
     public WinInfo win_user;
+}
+
+[System.Serializable]
+public class PrizeBlock {
+    public GamePrizesData games_prizes_data;
+}
+
+[System.Serializable]
+public class GamePrizesData { 
+    public ObjectPrizeData object_data;
+}
+
+[System.Serializable]
+public class ObjectPrizeData {
+    public string title;
+    public string default_look_preview;
 }
 
 [System.Serializable]
 public class WinInfo {
     public int id;
+    public int user_id;
     public int received;
     public string received_at;
+
+    public string qr_code;
 
     public WinUserInfo user;
 }

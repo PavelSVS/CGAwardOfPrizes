@@ -35,10 +35,13 @@ public class QRReader : MonoBehaviour
         }
     }
 
-    private void StopRead() {
-        camTexture.Stop();
+    public void StopRead() {
+        if (camTexture != null) camTexture.Stop();
         if (scanning != null)
             StopCoroutine(scanning);
+
+        image.texture = null;
+        image.material.mainTexture = null;
 
         scanning = null;
 

@@ -18,6 +18,7 @@ public class PrizeCuponInfoWindows : MonoBehaviour, IWindows
     [SerializeField] private Image prize_image;
 
     [SerializeField] private TMP_Text prize_id;
+    [SerializeField] private TMP_Text prize_name;
     [SerializeField] private TMP_Text user_place;
     [SerializeField] private TMP_Text winner_account;
 
@@ -60,9 +61,14 @@ public class PrizeCuponInfoWindows : MonoBehaviour, IWindows
         });
 
         continueWindow.SetActive(false);
+        gameObject.SetActive(false);
     }
 
     public void CloseWindows() {
+        prize_image.gameObject.SetActive(false);
+        continueWindow.SetActive(false);
+        prize_image.sprite = null;
+        prize_image.gameObject.SetActive(false);
         gameObject.SetActive(false);
     }
 
@@ -71,17 +77,30 @@ public class PrizeCuponInfoWindows : MonoBehaviour, IWindows
     }
 
     public void OpenWindow() {
+        gameObject.SetActive(true);
         prize_id.text = "";
         user_place.text = "not found";
         winner_account.text = "not found";
 
         t_error.text = "";
 
+        b_Continue.interactable = true;
+
         if (AuthController.Instance) prizeInfo = AuthController.Instance.GetPrizeInfo();
 
         prize_id.text = prizeInfo.id.ToString();
-        user_place.text = "1";
-        winner_account.text = prizeInfo.win_user.user.phone.Length > 0 ? prizeInfo.win_user.user.phone : prizeInfo.win_user.user.email;
+        user_place.text = prizeInfo.place.ToString();
+        prize_name.text = prizeInfo.prize.games_prizes_data.object_data.title;
+
+        if (prizeInfo.win_user.user.phone != null)
+            winner_account.text = prizeInfo.win_user.user.phone.Length > 0 ? prizeInfo.win_user.user.phone : "user" + prizeInfo.win_user.user_id;
+        else {
+            if (prizeInfo.win_user.user.email != null)
+                winner_account.text = prizeInfo.win_user.user.email.Length > 0 ? prizeInfo.win_user.user.email : "user" + prizeInfo.win_user.user_id;
+            else
+                winner_account.text = "user" + prizeInfo.win_user.user_id;
+        }
+
 
         if (prizeInfo.win_user.received == 0) {
             b_GivePrizeToClient.gameObject.SetActive(true);
@@ -91,9 +110,69 @@ public class PrizeCuponInfoWindows : MonoBehaviour, IWindows
             b_GivePrizeToClient.gameObject.SetActive(false);
             prize_out_away.SetActive(true);
         }
+
+        if (prizeInfo.prize.games_prizes_data.object_data.default_look_preview != null && prizeInfo.prize.games_prizes_data.object_data.default_look_preview.Length > 0)
+                StartCoroutine(LoadTexture(prizeInfo.prize.games_prizes_data.object_data.default_look_preview));
+        else
+            if (prizeInfo.win_user.qr_code != null && prizeInfo.win_user.qr_code.Length > 0)
+            StartCoroutine(LoadTexture(prizeInfo.win_user.qr_code));
+
+        continueWindow.SetActive(false);
     }
 
+    private IEnumerator LoadTexture(string url) {
+        prize_image.gameObject.SetActive(true);
+
+        Texture2D good_image;
+
+        using (UnityWebRequest req = UnityWebRequestTexture.GetTexture(url)) {
+
+            yield return req.SendWebRequest();
+            if (req.isNetworkError || req.isHttpError) {
+                req.Dispose();
+                yield break;
+            }
+
+            good_image = DownloadHandlerTexture.GetContent(req);
+            req.Dispose();
+        }
+
+        prize_image.sprite = Sprite.Create(good_image, new Rect(0, 0, good_image.width, good_image.height), Vector2.zero);
+    }
+
+    //https://cloudsgoods.com/api/games/stocks?mode=give_out_prize&coupon_number=1028689121635&user_id=7
     public IEnumerator GivePrizeToClient() {
-        yield return new WaitForFixedUpdate();
+        WWWForm form = new WWWForm();
+        form.AddField("mode", "give_out_prize");
+        form.AddField("coupon_number", prizeInfo.coupon_number);
+        form.AddField("user_id", prizeInfo.win_user.user_id);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(WebData.GivePrizeOut, form)) {
+            yield return www.SendWebRequest();
+            if (www.isNetworkError || www.isHttpError) {
+                Debug.LogError(www.error);
+                www.Dispose();
+                yield break;
+            }
+
+            t_error.text = www.downloadHandler.text.Length > 10 ? www.downloadHandler.text.Substring(0, 10) : www.downloadHandler.text;
+           // PrizeCalResult result = JsonUtility.FromJson<PrizeCalResult>(www.downloadHandler.text);
+            www.Dispose();
+
+            //if (result.error.Length < 1) {
+                b_GivePrizeToClient.gameObject.SetActive(false);
+                prize_out_away.SetActive(true);
+                continueWindow.SetActive(false);
+                yield break;
+            //}
+
+            //yield return new WaitForFixedUpdate();
+            //if (result.error.Length > 0) t_error.text = result.error[0];
+            //else
+            //    t_error.text = "Не удалось выдать купон";
+
+            continueWindow.SetActive(false);
+            b_Continue.interactable = true;
+        }
     }
 }

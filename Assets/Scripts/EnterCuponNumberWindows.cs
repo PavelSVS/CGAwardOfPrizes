@@ -32,18 +32,20 @@ public class EnterCuponNumberWindows : MonoBehaviour, IWindows {
 
         b_Continue.onClick.AddListener(() => {
             b_Continue.interactable = false;
+            qr_reader.StopRead();
             StartCoroutine(RequestCuponInfo());
         });
 
         b_StartScanningQR.onClick.AddListener(() => {
             qr_reader.Init(cupon_number);
         });
+
+        gameObject.SetActive(false);
     }
 
     public void CloseWindows() {
-        cupon_number.caretColor = Color.white;
-
         gameObject.SetActive(false);
+        cupon_number.caretColor = Color.white;
     }
 
     public WindowsType GetWindowType() {
@@ -55,6 +57,7 @@ public class EnterCuponNumberWindows : MonoBehaviour, IWindows {
         qr_reader.gameObject.SetActive(false);
         b_Continue.interactable = true;
         cupon_number.text = "";
+        t_error.text = "";
 
         if (AuthController.Instance) user_name.text = "Аккаунт: " + AuthController.Instance.GetUserInfo().phone;
     }
